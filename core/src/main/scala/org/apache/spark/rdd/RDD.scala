@@ -1851,6 +1851,11 @@ object RDD {
     new PairRDDFunctions(rdd)
   }
 
+  implicit def rddToTraversableRDDFunctions[U](rdd: RDD[Seq[U]])
+      (implicit et: ClassTag[U]): TraversableRDDFunctions[U] = {
+    new TraversableRDDFunctions(rdd)
+  }
+
   implicit def rddToAsyncRDDActions[T: ClassTag](rdd: RDD[T]): AsyncRDDActions[T] = {
     new AsyncRDDActions(rdd)
   }
