@@ -171,18 +171,15 @@ case class StaticInvoke(
  * @param arguments An optional list of expressions, whos evaluation will be passed to the function.
  * @param propagateNull When true, and any of the arguments is null, null will be returned instead
  *                      of calling the function.
- * @param returnNullable When false, indicating the invoked method will always return
- *                       non-null value.
  */
 case class Invoke(
     targetObject: Expression,
     functionName: String,
     dataType: DataType,
     arguments: Seq[Expression] = Nil,
-    propagateNull: Boolean = true,
-    returnNullable : Boolean = true) extends InvokeLike {
+    propagateNull: Boolean = true) extends InvokeLike {
 
-  override def nullable: Boolean = targetObject.nullable || needNullCheck || returnNullable
+  override def nullable: Boolean = true
   override def children: Seq[Expression] = targetObject +: arguments
 
   override def eval(input: InternalRow): Any =
@@ -408,15 +405,13 @@ case class WrapOption(child: Expression, optType: DataType)
  * A place holder for the loop variable used in [[MapObjects]].  This should never be constructed
  * manually, but will instead be passed into the provided lambda function.
  */
-case class LambdaVariable(
-    value: String,
-    isNull: String,
-    dataType: DataType,
-    nullable: Boolean = true) extends LeafExpression
+case class LambdaVariable(value: String, isNull: String, dataType: DataType) extends LeafExpression
   with Unevaluable with NonSQLExpression {
 
+  override def nullable: Boolean = true
+
   override def genCode(ctx: CodegenContext): ExprCode = {
-    ExprCode(code = "", value = value, isNull = if (nullable) isNull else "false")
+    ExprCode(code = "", value = value, isNull = isNull)
   }
 }
 
@@ -597,8 +592,7 @@ object ExternalMapToCatalyst {
       keyType: DataType,
       keyConverter: Expression => Expression,
       valueType: DataType,
-      valueConverter: Expression => Expression,
-      valueNullable: Boolean): ExternalMapToCatalyst = {
+      valueConverter: Expression => Expression): ExternalMapToCatalyst = {
     val id = curId.getAndIncrement()
     val keyName = "ExternalMapToCatalyst_key" + id
     val valueName = "ExternalMapToCatalyst_value" + id
@@ -607,11 +601,11 @@ object ExternalMapToCatalyst {
     ExternalMapToCatalyst(
       keyName,
       keyType,
-      keyConverter(LambdaVariable(keyName, "false", keyType, false)),
+      keyConverter(LambdaVariable(keyName, "false", keyType)),
       valueName,
       valueIsNull,
       valueType,
-      valueConverter(LambdaVariable(valueName, valueIsNull, valueType, valueNullable)),
+      valueConverter(LambdaVariable(valueName, valueIsNull, valueType)),
       inputMap
     )
   }
@@ -930,7 +924,7 @@ case class InitializeJavaBean(beanInstance: Expression, setters: Map[String, Exp
 /**
  * Asserts that input values of a non-nullable child expression are not null.
  *
- * Note that there are cases where `child.nullable == true`, while we still needs to add this
+ * Note that there are cases where `child.nullable == true`, while we still need to add this
  * assertion.  Consider a nullable column `s` whose data type is a struct containing a non-nullable
  * `Int` field named `i`.  Expression `s.i` is nullable because `s` can be null.  However, for all
  * non-null `s`, `s.i` can't be null.
