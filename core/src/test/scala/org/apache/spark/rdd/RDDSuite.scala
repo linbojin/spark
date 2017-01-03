@@ -88,6 +88,11 @@ class RDDSuite extends SparkFunSuite with SharedSparkContext {
     }
   }
 
+  test("flatten") {
+    val nestedNums = sc.makeRDD(Array(Array(1, 2, 3), Array(4, 5), Array(6)), 2)
+    assert(nestedNums.flatten.collect().toList === List(1, 2, 3, 4, 5, 6))
+  }
+
   test("serialization") {
     val empty = new EmptyRDD[Int](sc)
     val serial = Utils.serialize(empty)

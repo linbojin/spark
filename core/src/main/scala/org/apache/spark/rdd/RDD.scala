@@ -381,6 +381,28 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * Return a new RDD by flattening all elements from RDD with traversable elements
+   */
+  def flatten[U: ClassTag](implicit asTraversable: T => TraversableOnce[U]): RDD[U] = withScope {
+    val f = (x: T) => asTraversable(x)
+    val cleanF = sc.clean(f)
+    new MapPartitionsRDD[U, T](this, (context, pid, iter) => iter.flatMap(cleanF))
+
+    // Alternatives 1
+    // new MapPartitionsRDD[U, T](this, (context, pid, iter) => {
+    //  var newIter: Iterator[U] = Iterator.empty
+    //  for (x <- iter) newIter ++= asTraversable(x)
+    //  newIter
+    // })
+
+    // Alternatives 1
+    // new MapPartitionsRDD[U, T](this, (context, pid, iter) => {
+    //  val emptyIter: Iterator[U] = Iterator.empty
+    //  iter.foldLeft[Iterator[U]](emptyIter)((newIter, x) => newIter ++ asTraversable(x))
+    // })
+  }
+
+  /**
    * Return a new RDD containing only the elements that satisfy a predicate.
    */
   def filter(f: T => Boolean): RDD[T] = withScope {
